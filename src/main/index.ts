@@ -82,12 +82,37 @@ function createWindow(): void {
   // Create BrowserView for the target web page
   targetView = new BrowserView({
     webPreferences: {
-      sandbox: true
+      sandbox: false,
+      webSecurity: true,
+      contextIsolation: true,
+      nodeIntegration: false
     }
   })
 
   mainWindow.setBrowserView(targetView)
-  targetView.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  targetView.webContents.setWindowOpenHandler(({ url, features }) => {
+    const width = parseInt(features.match(/width=(\d+)/)?.[1] || '500')
+    const height = parseInt(features.match(/height=(\d+)/)?.[1] || '600')
+    
+    return {
+      action: 'allow',
+      overrideBrowserWindowOptions: {
+        width,
+        height,
+        parent: mainWindow ?? undefined,
+        modal: false,
+        show: true,
+        backgroundColor: '#ffffff',
+        title: 'Sign in',
+        webPreferences: {
+          sandbox: true,
+          webSecurity: true,
+          contextIsolation: true,
+          nodeIntegration: false
+        }
+      }
+    }
+  })
   layoutViews()
 
   // Attach CDP debugger to the target view

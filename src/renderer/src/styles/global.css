@@ -92,13 +92,13 @@ body {
 .url-bar {
   height: var(--url-bar-height);
   background: var(--bg-secondary);
-  border-bottom: none;
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   padding: 0 12px;
   gap: 8px;
   -webkit-app-region: drag;
-  padding-left: 80px; /* space for traffic lights */
+  padding-left: 80px;
 }
 
 .nav-buttons {

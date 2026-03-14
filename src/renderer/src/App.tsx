@@ -78,12 +78,14 @@ export default function App() {
   const [dropIndex, setDropIndex] = useState<number | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const activeTabRef = useRef<number | null>(null)
+  const tabsRef = useRef(tabs)
   const consoleButtonRef = useRef<HTMLButtonElement>(null)
   const consoleHoverTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [consolePreviewVisible, setConsolePreviewVisible] = useState(false)
 
-  // Keep ref in sync for use inside onUrlChanged closure
+  // Keep refs in sync for use inside event listener closures
   useEffect(() => { activeTabRef.current = activeTab }, [activeTab])
+  useEffect(() => { tabsRef.current = tabs }, [tabs])
 
   // Load pinned tabs from storage (replaces default if any saved)
   const tabsLoaded = useRef(false)
@@ -128,6 +130,17 @@ export default function App() {
             ? 'window.__attributeShowSelection__ && window.__attributeShowSelection__()'
             : 'window.__attributeHideSelection__ && window.__attributeHideSelection__()'
         })
+      }
+      if (e.metaKey && e.key === 'd') {
+        e.preventDefault()
+        const idx = activeTabRef.current
+        if (idx === null) return
+        const url = tabsRef.current[idx]?.url
+        if (!url) return
+        const newIndex = tabsRef.current.length
+        setTabs((prev) => [...prev, { url, pinned: true }])
+        setActiveTab(newIndex)
+        navigateTo(url)
       }
     }
     const up = (e: KeyboardEvent) => {
