@@ -14,6 +14,14 @@ interface GeminiContent {
   parts: Array<{ text: string }>
 }
 
+interface GeminiResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ text?: string }>
+    }
+  }>
+}
+
 export async function geminiGenerate(
   apiKey: string,
   systemPrompt: string,
@@ -55,12 +63,11 @@ export async function geminiGenerate(
     throw new Error(`Gemini API error ${response.status}: ${text}`)
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data: any = await response.json()
+  const data = (await response.json()) as GeminiResponse
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
   if (!text) {
     throw new Error('No text in Gemini response')
   }
 
-  return text as string
+  return text
 }

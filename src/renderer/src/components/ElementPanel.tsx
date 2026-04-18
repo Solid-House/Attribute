@@ -1,19 +1,14 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import type { ElementData, StyleGroup, StyleKey } from '../lib/types'
 import { STYLE_GROUPS, SHORTHAND_MAP, getInputKind, getSelectOptions } from '../lib/types'
 import { buildGroupSystemPrompt, buildGroupUserPrompt } from '../lib/aiPrompts'
 
 interface ElementPanelProps {
   element: ElementData
-  initialStyles: Record<string, string>
   modifiedStyles: Record<string, string>
   onStyleChange: (prop: string, value: string) => void
   onRevertStyle: (prop: string) => void
-  onCopyPrompt: () => void
-  onReset: () => void
   onTextChange: (text: string) => void
-  copied: boolean
-  modificationCount: number
   hasApiKey: boolean
 }
 
@@ -46,6 +41,16 @@ const NOISE_VALUES = new Set(['', 'none', 'normal', 'auto', 'static', 'visible',
 
 function isNoiseValue(value: string): boolean {
   return NOISE_VALUES.has(value)
+}
+
+function buildCollapsedState(modifiedStyles: Record<string, string>): Record<string, boolean> {
+  const state: Record<string, boolean> = {}
+  for (const group of STYLE_GROUPS) {
+    const hasModified = group.keys.some((key) => modifiedStyles[key] !== undefined)
+    state[group.label] = !hasModified
+  }
+  state['Text Content'] = true
+  return state
 }
 
 // ── CSS value tokenizer (splits on spaces, respects parens and quotes) ──
@@ -317,31 +322,15 @@ function AiGroupInput({ element, group, currentStyles, onStyleChange }: AiGroupI
 
 export default function ElementPanel({
   element,
-  initialStyles,
   modifiedStyles,
   onStyleChange,
   onRevertStyle,
-  onCopyPrompt,
-  onReset,
   onTextChange,
-  copied,
-  modificationCount,
   hasApiKey
 }: ElementPanelProps) {
   const { computedStyles: cs } = element
 
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
-
-  // On new element: collapse all, then open groups with modifications
-  useEffect(() => {
-    const state: Record<string, boolean> = {}
-    for (const group of STYLE_GROUPS) {
-      const hasModified = group.keys.some((k) => modifiedStyles[k] !== undefined)
-      state[group.label] = !hasModified
-    }
-    state['Text Content'] = true
-    setCollapsed(state)
-  }, [element])
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => buildCollapsedState(modifiedStyles))
 
   const toggleGroup = (label: string) => {
     setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }))

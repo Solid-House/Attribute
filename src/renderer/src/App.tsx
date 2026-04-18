@@ -74,6 +74,7 @@ export default function App() {
   const [draftH, setDraftH] = useState('')
   const [editingW, setEditingW] = useState(false)
   const [editingH, setEditingH] = useState(false)
+  const [panelInstance, setPanelInstance] = useState(0)
   const [confirmReset, setConfirmReset] = useState(false)
   const editingTabRef = useRef<number | null>(null)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
@@ -195,6 +196,7 @@ export default function App() {
       setIsLoading(false)
       // Clear edit state on navigation
       setSelectedElement(null)
+      setPanelInstance((prev) => prev + 1)
       setInitialStyles({})
       setModifiedStyles({})
 
@@ -213,6 +215,7 @@ export default function App() {
     })
     const unsubElement = window.api.onElementSelected((data) => {
       setSelectedElement(data)
+      setPanelInstance((prev) => prev + 1)
       setInitialStyles({ ...data.computedStyles })
       setModifiedStyles({})
       setCopied(false)
@@ -502,6 +505,7 @@ export default function App() {
     try {
       const data = JSON.parse(json) as ElementData
       setSelectedElement(data)
+      setPanelInstance((prev) => prev + 1)
       setInitialStyles({ ...data.computedStyles })
       setModifiedStyles({})
       setCopied(false)
@@ -520,6 +524,7 @@ export default function App() {
     try {
       const data = JSON.parse(json) as ElementData
       setSelectedElement(data)
+      setPanelInstance((prev) => prev + 1)
       setInitialStyles({ ...data.computedStyles })
       setModifiedStyles({})
       setCopied(false)
@@ -556,8 +561,7 @@ export default function App() {
   const [resetCountdown, setResetCountdown] = useState(0)
 
   useEffect(() => {
-    if (!confirmReset) { setResetCountdown(0); return }
-    setResetCountdown(3)
+    if (!confirmReset) return
     const interval = setInterval(() => {
       setResetCountdown((prev) => {
         if (prev <= 1) { setConfirmReset(false); return 0 }
@@ -569,10 +573,12 @@ export default function App() {
 
   const handleResetClick = useCallback(() => {
     if (!confirmReset) {
+      setResetCountdown(3)
       setConfirmReset(true)
       return
     }
     setConfirmReset(false)
+    setResetCountdown(0)
     // Re-apply each modified property's original value via CDP
     ;(async () => {
       for (const prop of Object.keys(modifiedStyles)) {
@@ -837,16 +843,12 @@ export default function App() {
         <div className="panel-content">
           {selectedElement ? (
             <ElementPanel
+              key={panelInstance}
               element={selectedElement}
-              initialStyles={initialStyles}
               modifiedStyles={modifiedStyles}
               onStyleChange={handleStyleChange}
               onRevertStyle={handleRevertStyle}
-              onCopyPrompt={handleCopyPrompt}
-              onReset={handleResetClick}
               onTextChange={handleTextChange}
-              copied={copied}
-              modificationCount={modificationCount}
               hasApiKey={hasApiKey}
             />
           ) : (

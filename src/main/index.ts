@@ -4,7 +4,6 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { is } from '@electron-toolkit/utils'
 import { geminiGenerate } from './gemini'
 import {
-  initConsolePreview,
   showConsolePreview,
   hideConsolePreview,
   updateConsolePreview,
@@ -90,7 +89,7 @@ function createWindow(): void {
   })
 
   mainWindow.setBrowserView(targetView)
-  targetView.webContents.setWindowOpenHandler(({ url, features }) => {
+  targetView.webContents.setWindowOpenHandler(({ features }) => {
     const width = parseInt(features.match(/width=(\d+)/)?.[1] || '500')
     const height = parseInt(features.match(/height=(\d+)/)?.[1] || '600')
     
@@ -193,7 +192,7 @@ function createWindow(): void {
   targetView.webContents.on('did-finish-load', () => {
     consoleLogs = []
     injectOverlay()
-    mainWindow?.webContents.send('page-title-changed', targetView.webContents.getTitle())
+    mainWindow?.webContents.send('page-title-changed', targetView?.webContents.getTitle() ?? '')
   })
 
   targetView.webContents.on('page-title-updated', (_event, title) => {
@@ -217,9 +216,6 @@ function createWindow(): void {
       )
     }
   })
-
-  // Initialize console preview module
-  initConsolePreview(mainWindow)
 
   mainWindow.on('close', (event) => {
     if (unpinnedTabCount > 0) {
@@ -623,7 +619,6 @@ ipcMain.on('console-preview-command', async (_event, command: string) => {
     
     if (result.result) {
       const value = result.result.value
-      const type = result.result.type
       let output: string
       
       if (value === undefined) {

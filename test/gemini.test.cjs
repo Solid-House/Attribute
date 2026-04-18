@@ -74,3 +74,7 @@ test('geminiGenerate rejects responses that do not contain candidate text', asyn
     /No text in Gemini response/
   )
 })
+
+test.afterEach(() => {
+  delete global.fetch
+})

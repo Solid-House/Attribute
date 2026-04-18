@@ -3,7 +3,6 @@ import { join } from 'path'
 import type { BrowserWindow as BrowserWindowType } from 'electron'
 
 let previewWindow: BrowserWindowType | null = null
-let mainWindowRef: BrowserWindowType | null = null
 let leaveTimeout: NodeJS.Timeout | null = null
 let cursorPollInterval: NodeJS.Timeout | null = null
 let wasOverPreview = false
@@ -15,9 +14,6 @@ const MIN_HEIGHT = 60
 const BOTTOM_PADDING = 16
 const TOP_BAR_HEIGHT = 52
 const GAP = 4
-const HEADER_HEIGHT = 36
-const LINE_HEIGHT = 19.2
-const LOG_PADDING = 16
 
 const PREVIEW_HTML = `
 <!DOCTYPE html>
@@ -220,10 +216,6 @@ const PREVIEW_HTML = `
 </body>
 </html>
 `
-
-export function initConsolePreview(mainWindow: BrowserWindowType): void {
-  mainWindowRef = mainWindow
-}
 
 export function showConsolePreview(
   buttonX: number,
