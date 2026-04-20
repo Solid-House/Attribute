@@ -23,6 +23,7 @@ let unpinnedTabCount = 0
 let consoleLogs: string[] = []
 let consoleButtonBounds: { viewportX: number; viewportY: number; width: number } | null = null
 const MAX_CONSOLE_LOGS = 500
+const TARGET_VIEW_PARTITION = 'persist:attribute-target-view'
 
 // Simple JSON file store (replaces electron-store to avoid ESM issues)
 function getSettingsPath(): string {
@@ -81,6 +82,7 @@ function createWindow(): void {
   // Create BrowserView for the target web page
   targetView = new BrowserView({
     webPreferences: {
+      partition: TARGET_VIEW_PARTITION,
       sandbox: false,
       webSecurity: true,
       contextIsolation: true,
@@ -104,6 +106,7 @@ function createWindow(): void {
         backgroundColor: '#ffffff',
         title: 'Sign in',
         webPreferences: {
+          partition: TARGET_VIEW_PARTITION,
           sandbox: true,
           webSecurity: true,
           contextIsolation: true,
