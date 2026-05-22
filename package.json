@@ -3,6 +3,7 @@
   "version": "0.10.1-alpha",
   "description": "A Chromium-based browser for vibecoding and rapid visual prototyping",
   "main": "./out/main/index.js",
+  "author": "Russell Matsuo",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -27,11 +28,12 @@
     "mac": {
       "target": "dmg",
       "category": "public.app-category.developer-tools",
+      "icon": "build/icon.png",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
-      "notarize": true
+      "notarize": false
     }
   },
   "dependencies": {
@@ -40,7 +42,9 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@electron-toolkit/utils": "^3.0.0",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.60.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",

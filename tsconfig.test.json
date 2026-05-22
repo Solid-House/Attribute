@@ -11,6 +11,7 @@
     "resolveJsonModule": true
   },
   "include": [
-    "src/main/gemini.ts"
+    "src/main/gemini.ts",
+    "src/main/connectionError.ts"
   ]
 }

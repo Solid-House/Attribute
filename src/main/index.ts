@@ -1,8 +1,8 @@
 import { app, BrowserWindow, BrowserView, ipcMain, session, Menu, dialog, safeStorage } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
-import { is } from '@electron-toolkit/utils'
 import { geminiGenerate } from './gemini'
+import { buildConnectionErrorPage } from './connectionError'
 import {
   showConsolePreview,
   hideConsolePreview,
@@ -73,7 +73,7 @@ function createWindow(): void {
   })
 
   // Load the side panel renderer
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+  if (!app.isPackaged && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
@@ -179,8 +179,36 @@ function createWindow(): void {
   })
 
 
-  // Load a default page
-  targetView.webContents.loadURL('http://localhost:3000')
+  // Load a default page; show a friendly error if localhost is not running
+  const DEFAULT_URL = 'http://localhost:3000'
+
+  const loadErrorPage = () => {
+    if (!targetView) return
+    let host = 'localhost'
+    try { host = new URL(DEFAULT_URL).host } catch { /* keep default */ }
+    targetView.webContents.loadURL(
+      `data:text/html;charset=utf-8,${encodeURIComponent(buildConnectionErrorPage(host))}`
+    )
+  }
+
+  const loadDefaultPage = () => {
+    if (!targetView) return
+    targetView.webContents.loadURL(DEFAULT_URL).catch((err) => {
+      console.log('[Attribute] loadURL rejected:', err?.message ?? err)
+      loadErrorPage()
+    })
+  }
+
+  // did-fail-load fires for some Chromium net errors (e.g., DNS failure)
+  targetView.webContents.on('did-fail-load', (_event, errorCode, _errorDescription, validatedURL) => {
+    console.log('[Attribute] did-fail-load:', errorCode, validatedURL)
+    const isLocalhost = validatedURL.startsWith('http://localhost') || validatedURL.startsWith('http://127.0.0.1')
+    if (isLocalhost) {
+      loadErrorPage()
+    }
+  })
+
+  loadDefaultPage()
 
   // Send URL updates back to the renderer
   targetView.webContents.on('did-navigate', (_event, url) => {
@@ -382,14 +410,15 @@ ipcMain.handle('reload', () => {
 ipcMain.handle('show-size-presets', () => {
   if (!mainWindow) return
   const presets = [
-    { label: 'Mobile S', w: 320, h: 568 },
-    { label: 'Mobile M', w: 375, h: 667 },
-    { label: 'Mobile L', w: 425, h: 812 },
-    { label: 'Tablet', w: 768, h: 1024 },
-    { label: 'Laptop', w: 1024, h: 768 },
-    { label: 'Laptop L', w: 1440, h: 900 },
-    { label: 'Desktop', w: 1920, h: 1080 },
-    { label: 'Desktop L', w: 2560, h: 1440 }
+    { label: 'iPhone SE', w: 750, h: 1334 },
+    { label: 'iPhone 16 Pro', w: 1179, h: 2556 },
+    { label: 'iPhone 17 Pro Max', w: 1320, h: 2868 },
+    { label: 'Galaxy S26', w: 1080, h: 2340 },
+    { label: 'Galaxy S26 Ultra', w: 1440, h: 3120 },
+    { label: 'iPad Mini', w: 1488, h: 2266 },
+    { label: 'iPad Pro 12.9"', w: 2048, h: 2732 },
+    { label: 'MacBook Air 13"', w: 2880, h: 1864 },
+    { label: 'MacBook Pro 16"', w: 3456, h: 2234 }
   ]
   const menu = Menu.buildFromTemplate(
     presets.map((p) => ({
