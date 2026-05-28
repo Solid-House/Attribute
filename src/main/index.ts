@@ -83,7 +83,7 @@ function createWindow(): void {
   targetView = new BrowserView({
     webPreferences: {
       partition: TARGET_VIEW_PARTITION,
-      sandbox: false,
+      sandbox: true,
       webSecurity: true,
       contextIsolation: true,
       nodeIntegration: false
@@ -91,7 +91,20 @@ function createWindow(): void {
   })
 
   mainWindow.setBrowserView(targetView)
-  targetView.webContents.setWindowOpenHandler(({ features }) => {
+  targetView.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
+    console.warn(`Blocked permission request from target page: ${permission}`)
+    callback(false)
+  })
+  targetView.webContents.setWindowOpenHandler(({ url, features }) => {
+    try {
+      const parsed = new URL(url)
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return { action: 'deny' }
+      }
+    } catch {
+      return { action: 'deny' }
+    }
+
     const width = parseInt(features.match(/width=(\d+)/)?.[1] || '500')
     const height = parseInt(features.match(/height=(\d+)/)?.[1] || '600')
     
@@ -502,12 +515,13 @@ function loadApiKey(): string | undefined {
     try {
       return safeStorage.decryptString(Buffer.from(stored, 'base64'))
     } catch {
-      // Might be a legacy plaintext value — migrate it
-      saveApiKey(stored)
-      return stored
+      console.warn('Discarding unreadable Gemini API key instead of returning plaintext fallback')
+      deleteSetting('gemini-api-key')
+      return undefined
     }
   }
-  return stored
+  console.warn('safeStorage encryption not available — refusing to load stored API key')
+  return undefined
 }
 
 function removeApiKey(): void {
