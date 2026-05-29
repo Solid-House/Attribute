@@ -3,6 +3,8 @@ import { join } from 'path'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { geminiGenerate } from './gemini'
 import { buildConnectionErrorPage } from './connectionError'
+import { createApiKeyStore } from './apiKeyStore'
+import { isAllowedScheme } from './schemeGuard'
 import {
   showConsolePreview,
   hideConsolePreview,
@@ -24,6 +26,15 @@ let consoleLogs: string[] = []
 let consoleButtonBounds: { viewportX: number; viewportY: number; width: number } | null = null
 const MAX_CONSOLE_LOGS = 500
 const TARGET_VIEW_PARTITION = 'persist:attribute-target-view'
+
+// Append a line to the console ring buffer, trimming to the most recent
+// MAX_CONSOLE_LOGS entries.
+function appendConsoleLog(line: string): void {
+  consoleLogs.push(line)
+  if (consoleLogs.length > MAX_CONSOLE_LOGS) {
+    consoleLogs = consoleLogs.slice(-MAX_CONSOLE_LOGS)
+  }
+}
 
 // Simple JSON file store (replaces electron-store to avoid ESM issues)
 function getSettingsPath(): string {
@@ -96,12 +107,7 @@ function createWindow(): void {
     callback(false)
   })
   targetView.webContents.setWindowOpenHandler(({ url, features }) => {
-    try {
-      const parsed = new URL(url)
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        return { action: 'deny' }
-      }
-    } catch {
+    if (!isAllowedScheme(url)) {
       return { action: 'deny' }
     }
 
@@ -128,6 +134,18 @@ function createWindow(): void {
       }
     }
   })
+
+  // Popups created above inherit the partition-wide permission block, but each
+  // new webContents needs its own will-navigate guard so a popup can't be
+  // navigated to a dangerous scheme (file:, javascript:, etc).
+  targetView.webContents.on('did-create-window', (childWindow) => {
+    childWindow.webContents.on('will-navigate', (event, navUrl) => {
+      if (!isAllowedScheme(navUrl)) {
+        event.preventDefault()
+      }
+    })
+  })
+
   layoutViews()
 
   // Attach CDP debugger to the target view
@@ -161,19 +179,13 @@ function createWindow(): void {
         )
         .join(' ')
       const line = `[${type}] ${args}`
-      consoleLogs.push(line)
-      if (consoleLogs.length > MAX_CONSOLE_LOGS) {
-        consoleLogs = consoleLogs.slice(-MAX_CONSOLE_LOGS)
-      }
+      appendConsoleLog(line)
       // Update preview if visible
       updateConsolePreview(consoleLogs.join('\n'))
     }
     if (method === 'Runtime.exceptionThrown') {
       const desc = params.exceptionDetails?.exception?.description || params.exceptionDetails?.text || 'Unknown error'
-      consoleLogs.push(`[error] ${desc}`)
-      if (consoleLogs.length > MAX_CONSOLE_LOGS) {
-        consoleLogs = consoleLogs.slice(-MAX_CONSOLE_LOGS)
-      }
+      appendConsoleLog(`[error] ${desc}`)
       // Update preview if visible
       updateConsolePreview(consoleLogs.join('\n'))
     }
@@ -181,12 +193,7 @@ function createWindow(): void {
 
   // Block navigation to non-http(s) schemes initiated by the target page
   targetView.webContents.on('will-navigate', (event, navUrl) => {
-    try {
-      const parsed = new URL(navUrl)
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        event.preventDefault()
-      }
-    } catch {
+    if (!isAllowedScheme(navUrl)) {
       event.preventDefault()
     }
   })
@@ -357,13 +364,13 @@ ipcMain.handle('navigate', async (_event, url: string) => {
   }
 
   // Only allow http/https schemes
-  try {
-    const parsed = new URL(normalizedUrl)
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+  if (!isAllowedScheme(normalizedUrl)) {
+    try {
+      const parsed = new URL(normalizedUrl)
       return { success: false, error: `Blocked scheme: ${parsed.protocol}` }
+    } catch {
+      return { success: false, error: 'Invalid URL' }
     }
-  } catch {
-    return { success: false, error: 'Invalid URL' }
   }
 
   try {
@@ -497,35 +504,24 @@ ipcMain.handle('set-viewport-size', (_event, w: number, h: number) => {
 })
 
 // --- Gemini API key helpers (encrypted via safeStorage) ---
+// Fail-closed logic lives in apiKeyStore.ts so it can be unit-tested without
+// Electron. Here we wire the real safeStorage and JSON settings file in.
+const apiKeyStore = createApiKeyStore(safeStorage, {
+  read: readSettings,
+  write: writeSetting,
+  delete: deleteSetting
+})
+
 function saveApiKey(key: string): void {
-  if (!safeStorage.isEncryptionAvailable()) {
-    console.error('safeStorage encryption not available — refusing to store API key in plaintext')
-    return
-  }
-  const encrypted = safeStorage.encryptString(key)
-  writeSetting('gemini-api-key', encrypted.toString('base64'))
-  // Remove any legacy plaintext key
-  deleteSetting('gemini-api-key-plain')
+  apiKeyStore.save(key)
 }
 
 function loadApiKey(): string | undefined {
-  const stored = readSettings()['gemini-api-key'] as string | undefined
-  if (!stored) return undefined
-  if (safeStorage.isEncryptionAvailable()) {
-    try {
-      return safeStorage.decryptString(Buffer.from(stored, 'base64'))
-    } catch {
-      console.warn('Discarding unreadable Gemini API key instead of returning plaintext fallback')
-      deleteSetting('gemini-api-key')
-      return undefined
-    }
-  }
-  console.warn('safeStorage encryption not available — refusing to load stored API key')
-  return undefined
+  return apiKeyStore.load()
 }
 
 function removeApiKey(): void {
-  deleteSetting('gemini-api-key')
+  apiKeyStore.remove()
 }
 
 // IPC: Gemini — check if API key is set (boolean only, key never exposed)
@@ -649,11 +645,8 @@ ipcMain.on('console-preview-command', async (_event, command: string) => {
   if (!targetView) return
   
   // Add command to logs (just the input with > prefix)
-  consoleLogs.push(`> ${command}`)
-  if (consoleLogs.length > MAX_CONSOLE_LOGS) {
-    consoleLogs = consoleLogs.slice(-MAX_CONSOLE_LOGS)
-  }
-  
+  appendConsoleLog(`> ${command}`)
+
   // Update preview with command
   updateConsolePreview(consoleLogs.join('\n'))
   
@@ -677,19 +670,15 @@ ipcMain.on('console-preview-command', async (_event, command: string) => {
       
       // Only show result if it's not undefined (undefined is implicit for statements)
       if (output !== 'undefined') {
-        consoleLogs.push(output)
+        appendConsoleLog(output)
       }
     } else if (result.exceptionDetails) {
-      consoleLogs.push(`[error] ${result.exceptionDetails.text || 'Error'}`)
+      appendConsoleLog(`[error] ${result.exceptionDetails.text || 'Error'}`)
     }
   } catch (err) {
-    consoleLogs.push(`[error] ${String(err)}`)
+    appendConsoleLog(`[error] ${String(err)}`)
   }
-  
-  if (consoleLogs.length > MAX_CONSOLE_LOGS) {
-    consoleLogs = consoleLogs.slice(-MAX_CONSOLE_LOGS)
-  }
-  
+
   updateConsolePreview(consoleLogs.join('\n'))
 })
 

@@ -12,6 +12,8 @@
   },
   "include": [
     "src/main/gemini.ts",
-    "src/main/connectionError.ts"
+    "src/main/connectionError.ts",
+    "src/main/apiKeyStore.ts",
+    "src/main/schemeGuard.ts"
   ]
 }

@@ -8,4 +8,7 @@ dist/
 .env.*
 release/
 Certificates/
-build/
+build/*
+# Required for hardened-runtime signing — keep these tracked so a fresh clone can sign.
+!build/entitlements.mac.plist
+!build/icon.png
