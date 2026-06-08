@@ -1,6 +1,7 @@
 {
   "name": "attribute",
   "version": "0.10.1-alpha",
+  "private": true,
   "description": "A Chromium-based browser for vibecoding and rapid visual prototyping",
   "main": "./out/main/index.js",
   "author": "Russell Matsuo",
