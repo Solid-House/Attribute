@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import type { ElementData, StyleGroup, StyleKey } from '../lib/types'
 import { STYLE_GROUPS, SHORTHAND_MAP, getInputKind, getSelectOptions } from '../lib/types'
-import { buildGroupSystemPrompt, buildGroupUserPrompt } from '../lib/aiPrompts'
+import { buildGroupSystemPrompt, buildGroupUserPrompt, isSafeStyleValue } from '../lib/aiPrompts'
 
 interface ElementPanelProps {
   element: ElementData
@@ -286,7 +286,14 @@ function AiGroupInput({ element, group, currentStyles, onStyleChange }: AiGroupI
       )
       const res = await window.api.geminiStyleSuggest(systemPrompt, userPrompt)
       if (res.success && res.result) {
+        // The prompt is built from untrusted page content, so the model output
+        // is untrusted (indirect prompt injection). Apply only properties the
+        // user's chosen group permits, and never a value that could load an
+        // external resource or run script. See isSafeStyleValue / group.keys.
+        const allowed = new Set<string>(group.keys)
         for (const [prop, val] of Object.entries(res.result)) {
+          if (!allowed.has(prop)) continue
+          if (!isSafeStyleValue(val)) continue
           onStyleChange(prop, val)
         }
         setValue('')
