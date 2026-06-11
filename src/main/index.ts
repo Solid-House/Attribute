@@ -5,6 +5,7 @@ import { geminiGenerate } from './gemini'
 import { buildConnectionErrorPage } from './connectionError'
 import { createApiKeyStore } from './apiKeyStore'
 import { isAllowedScheme } from './schemeGuard'
+import { sanitizeElementData } from './elementData'
 import {
   showConsolePreview,
   hideConsolePreview,
@@ -165,8 +166,14 @@ function createWindow(): void {
   targetView.webContents.debugger.on('message', (_event, method, params) => {
     if (method === 'Runtime.bindingCalled' && params.name === '__attributeSelect__') {
       try {
-        const elementData = JSON.parse(params.payload)
-        mainWindow?.webContents.send('element-selected', elementData)
+        // The binding lives in the target page's main world, so any loaded web
+        // content can call it with an arbitrary payload. Validate and shape it
+        // against the expected schema before forwarding; drop spoofed/malformed
+        // data instead of injecting it into the trusted side panel.
+        const elementData = sanitizeElementData(JSON.parse(params.payload))
+        if (elementData) {
+          mainWindow?.webContents.send('element-selected', elementData)
+        }
       } catch (err) {
         console.error('Failed to parse element data:', err)
       }
