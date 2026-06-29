@@ -5,6 +5,8 @@ import { geminiGenerate } from './gemini'
 import { buildConnectionErrorPage } from './connectionError'
 import { createApiKeyStore } from './apiKeyStore'
 import { isAllowedScheme } from './schemeGuard'
+import { parsePopupSize } from './popupSize'
+import { TOP_BAR_HEIGHT } from './layout'
 import { sanitizeElementData } from './elementData'
 import {
   showConsolePreview,
@@ -112,9 +114,8 @@ function createWindow(): void {
       return { action: 'deny' }
     }
 
-    const width = parseInt(features.match(/width=(\d+)/)?.[1] || '500')
-    const height = parseInt(features.match(/height=(\d+)/)?.[1] || '600')
-    
+    const { width, height } = parsePopupSize(features)
+
     return {
       action: 'allow',
       overrideBrowserWindowOptions: {
@@ -327,7 +328,6 @@ async function injectOverlay(): Promise<void> {
 }
 
 const PANEL_WIDTH = 350
-const TOP_BAR_HEIGHT = 52
 let panelVisible = false
 
 function getViewportSize(): { width: number; height: number } {
@@ -648,9 +648,16 @@ ipcMain.on('console-preview-content-height', (_event, height: number) => {
 })
 
 // IPC from preview window — execute command
+//
+// SECURITY INVARIANT: `command` is evaluated verbatim on the untrusted target
+// page via Runtime.evaluate. It MUST only ever originate from the human typing
+// into the trusted dev-console preview UI. Never wire any page-derived or remote
+// string (page title, selection, DOM content, network response, etc.) into this
+// channel — doing so turns this developer convenience into a direct code-
+// injection sink against the loaded page.
 ipcMain.on('console-preview-command', async (_event, command: string) => {
   if (!targetView) return
-  
+
   // Add command to logs (just the input with > prefix)
   appendConsoleLog(`> ${command}`)
 

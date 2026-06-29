@@ -1,7 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 
-const { isAllowedScheme } = require('../out-test/schemeGuard.js')
+const { isAllowedScheme } = require('../out-test/main/schemeGuard.js')
 
 test('isAllowedScheme allows http and https', () => {
   assert.equal(isAllowedScheme('http://localhost:3000'), true)

@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 
 const commonRules = {
   'no-unused-vars': 'off',
-  '@typescript-eslint/no-explicit-any': 'off',
+  '@typescript-eslint/no-explicit-any': 'error',
   '@typescript-eslint/no-unused-vars': [
     'error',
     {
@@ -67,6 +67,15 @@ export default tseslint.config(
     rules: {
       ...commonRules,
       '@typescript-eslint/no-require-imports': 'off'
+    }
+  },
+  {
+    // The injected overlay runs inside the untyped target page's main world,
+    // reaching for page-context window globals that have no ambient types.
+    // `any` is legitimate here; it stays an error everywhere else.
+    files: ['src/inject/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off'
     }
   }
 )

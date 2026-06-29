@@ -1,7 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 
-const { sanitizeElementData } = require('../out-test/elementData.js')
+const { sanitizeElementData } = require('../out-test/main/elementData.js')
 
 // A well-formed payload mirroring what the overlay's extractData produces.
 function legitPayload() {

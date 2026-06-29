@@ -1,7 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 
-const { buildConnectionErrorPage } = require('../out-test/connectionError.js')
+const { buildConnectionErrorPage } = require('../out-test/main/connectionError.js')
 
 test('buildConnectionErrorPage returns a complete HTML document', () => {
   const page = buildConnectionErrorPage('localhost')

@@ -1,6 +1,7 @@
 import { BrowserWindow, screen } from 'electron'
 import { join } from 'path'
 import type { BrowserWindow as BrowserWindowType } from 'electron'
+import { TOP_BAR_HEIGHT } from './layout'
 
 let previewWindow: BrowserWindowType | null = null
 let leaveTimeout: NodeJS.Timeout | null = null
@@ -12,7 +13,6 @@ let currentMaxHeight = 400
 const PREVIEW_WIDTH = 400
 const MIN_HEIGHT = 60
 const BOTTOM_PADDING = 16
-const TOP_BAR_HEIGHT = 52
 const GAP = 4
 
 const PREVIEW_HTML = `

@@ -5,6 +5,7 @@
     "target": "ES2022",
     "lib": ["ES2022", "DOM"],
     "outDir": "./out-test",
+    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -15,6 +16,8 @@
     "src/main/connectionError.ts",
     "src/main/apiKeyStore.ts",
     "src/main/schemeGuard.ts",
-    "src/main/elementData.ts"
+    "src/main/elementData.ts",
+    "src/main/popupSize.ts",
+    "src/renderer/src/lib/cdpExpressions.ts"
   ]
 }

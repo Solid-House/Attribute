@@ -1,7 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 
-const { geminiGenerate } = require('../out-test/gemini.js')
+const { geminiGenerate } = require('../out-test/main/gemini.js')
 
 test('geminiGenerate posts the expected request body and returns response text', async () => {
   const calls = []

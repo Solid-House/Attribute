@@ -1,7 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 
-const { createApiKeyStore } = require('../out-test/apiKeyStore.js')
+const { createApiKeyStore } = require('../out-test/main/apiKeyStore.js')
 
 // In-memory settings store mirroring the JSON file store in index.ts.
 function makeSettings(initial = {}) {

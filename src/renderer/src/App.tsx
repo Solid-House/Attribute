@@ -3,6 +3,7 @@ import ElementPanel from './components/ElementPanel'
 import type { ElementData } from './lib/types'
 import { compilePrompt } from './lib/promptCompiler'
 import { buildEnhanceSystemPrompt, buildEnhanceUserPrompt } from './lib/aiPrompts'
+import { setStyleExpression } from './lib/cdpExpressions'
 
 declare global {
   interface Window {
@@ -352,9 +353,13 @@ export default function App() {
 
   const handleEyedropper = useCallback(async () => {
     try {
-      const dropper = new (window as any).EyeDropper()
+      type EyeDropperResult = { sRGBHex: string }
+      type EyeDropperCtor = new () => { open: () => Promise<EyeDropperResult> }
+      const EyeDropper = (window as unknown as { EyeDropper?: EyeDropperCtor }).EyeDropper
+      if (!EyeDropper) return
+      const dropper = new EyeDropper()
       const result = await dropper.open()
-      const color = result.sRGBHex as string
+      const color = result.sRGBHex
       if (color) {
         await navigator.clipboard.writeText(color)
         setPickedColor(color)
@@ -466,7 +471,7 @@ export default function App() {
 
       // Apply via CDP → __attributeSetStyle__ on the target page
       const res = await window.api.cdpCommand('Runtime.evaluate', {
-        expression: `window.__attributeSetStyle__(${JSON.stringify(prop)}, ${JSON.stringify(value)})`,
+        expression: setStyleExpression(prop, value),
         returnByValue: true
       })
       console.log('[Attribute] style change:', prop, value, res)
@@ -477,7 +482,7 @@ export default function App() {
   const handleRevertStyle = useCallback(async (prop: string) => {
     const original = initialStyles[prop] ?? ''
     await window.api.cdpCommand('Runtime.evaluate', {
-      expression: `window.__attributeSetStyle__(${JSON.stringify(prop)}, ${JSON.stringify(original)})`,
+      expression: setStyleExpression(prop, original),
       returnByValue: true
     })
     setModifiedStyles((prev) => {
@@ -584,7 +589,7 @@ export default function App() {
       for (const prop of Object.keys(modifiedStyles)) {
         const original = initialStyles[prop] ?? ''
         await window.api.cdpCommand('Runtime.evaluate', {
-          expression: `window.__attributeSetStyle__(${JSON.stringify(prop)}, ${JSON.stringify(original)})`,
+          expression: setStyleExpression(prop, original),
           returnByValue: true
         })
       }
